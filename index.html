@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Trickster Takeover – Loki &amp; Worlds Collide</title>
+<style>
+  :root{
+    --bg:#0a0c10;
+    --panel:#14181f;
+    --panel-border:#2a313c;
+    --red:#ff2f2f;
+    --yellow:#ffd21e;
+    --txt:#e9edf2;
+    --muted:#9aa4b2;
+    /* Eingabefelder (Inline-Bearbeitung) */
+    --field-bg:#000000;
+    --field-txt:#ffffff;
+    --field-border:#4a5462;
+    /* Eckenabrundung der Loki-Karte – hier selbst anpassen (z.B. 10px = wenig, 40px = stark) */
+    --loki-radius:24px;
+  }
+  /* Light-Mode: überschreibt die Farb-Variablen */
+  html.light{
+    --bg:#eef1f5;
+    --panel:#ffffff;
+    --panel-border:#cfd6df;
+    --txt:#1a1d22;
+    --muted:#5a6472;
+    --yellow:#b8860b;   /* dunkleres Gold, damit die Bedrohung auf Hell lesbar bleibt */
+    --field-bg:#ffffff;
+    --field-txt:#1a1d22;
+    --field-border:#b3bcc7;
+  }
+  /* Theme-Umschalter */
+  .theme-toggle{
+    position:absolute;top:10px;right:12px;
+    width:2.3em;height:2.3em;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(16px,2.4vw,20px);line-height:1;cursor:pointer;
+    background:var(--panel);color:var(--txt);
+    border:1px solid var(--panel-border);border-radius:999px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  .theme-toggle:hover{filter:brightness(1.15);}
+  /* Sprach-Umschalter */
+  .lang-toggle{
+    position:absolute;top:10px;left:12px;
+    height:2.3em;min-width:2.3em;padding:0 .6em;
+    display:flex;align-items:center;justify-content:center;
+    font-size:clamp(13px,2vw,16px);font-weight:800;letter-spacing:.06em;
+    line-height:1;cursor:pointer;
+    background:var(--panel);color:var(--txt);
+    border:1px solid var(--panel-border);border-radius:999px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  .lang-toggle:hover{filter:brightness(1.15);}
+  /* Lock/Unlock-Schalter (sperrt Spieler-/Gruppen-Änderung und Reset) */
+  .lock-toggle{
+    width:2.3em;height:2.3em;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(15px,2.2vw,19px);line-height:1;cursor:pointer;
+    background:var(--panel);color:var(--txt);
+    border:1px solid var(--panel-border);border-radius:999px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  .lock-toggle:hover{filter:brightness(1.15);}
+  .lock-toggle.is-locked{color:var(--yellow);border-color:var(--yellow);}
+  /* gesperrte Bedienelemente */
+  .players button:disabled,
+  .js-reset:disabled{opacity:.4;cursor:not-allowed;filter:none;}
+  .players button:disabled:hover,
+  .js-reset:disabled:hover{filter:none;}
+  body.locked .pcount,
+  body.locked .readout .val[data-field="max"]{cursor:not-allowed;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;}
+  /* Skalierung auf Fenstergröße: Inhalt soll nie über das Fenster hinauslaufen */
+  html,body{height:100%;}
+  body{overflow:hidden;}
+  /* Inhaltsbreite begrenzen + zentrieren, damit auf breiten Fenstern Spielraum
+     zum gleichmäßigen Hochskalieren entsteht (sonst füllt der Inhalt schon die
+     volle Breite und kann nicht größer werden). */
+  #fit{transform-origin:top center;will-change:transform;
+    max-width:1200px;margin-left:auto;margin-right:auto;}
+
+  /* ---------- Header ---------- */
+  /* Nur Positionierungs-Kontext für die schwebenden Ecken-Buttons – kein Balken */
+  header{position:relative;height:0;}
+  .logo{
+    display:block;margin:0 auto;
+    height:clamp(46px,9vw,92px);width:auto;
+    max-width:min(90%,520px);object-fit:contain;
+    /* freigestellter (transparenter) Umrand -> sitzt sauber in Dark & Light Mode */
+  }
+  .players{
+    margin:8px auto 0;display:inline-flex;align-items:center;gap:10px;
+    background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:999px;padding:6px 10px;
+  }
+  .players .lbl{font-size:clamp(11px,1.6vw,14px);color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;font-weight:700;}
+  .players .pcount{
+    font-size:clamp(18px,3vw,26px);font-weight:900;min-width:1.4em;
+    text-align:center;cursor:pointer;color:var(--txt);border-radius:8px;padding:0 .15em;
+    font-variant-numeric:tabular-nums;
+  }
+  .players .pcount:hover{background:rgba(127,127,127,.18);}
+  .players input{
+    font:inherit;font-weight:900;text-align:center;width:3em;color:var(--field-txt);
+    background:var(--field-bg);border:2px solid var(--field-border);border-radius:8px;outline:none;
+  }
+  .players button{
+    font:inherit;font-weight:900;font-size:clamp(16px,2.6vw,22px);
+    width:1.8em;height:1.8em;border:none;border-radius:50%;cursor:pointer;
+    color:#fff;background:#2a3340;line-height:1;
+  }
+  .players button:hover{filter:brightness(1.3);}
+  .players input::-webkit-outer-spin-button,
+  .players input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .players input[type=number]{-moz-appearance:textfield;}
+
+  /* ---------- Panels ---------- */
+  .wrap{
+    display:grid;gap:clamp(10px,2vw,24px);padding:clamp(10px,2vw,24px);
+    justify-content:center;align-items:start;
+    grid-template-columns:repeat(2, minmax(0, 560px));
+    /* Loki links über beide Zeilen, rechts oben Hauptplan, darunter Logo+Spieler */
+    grid-template-areas:
+      "loki scheme"
+      "loki brand";
+  }
+  .panel{
+    max-width:560px;background:var(--panel);
+    border:1px solid var(--panel-border);border-radius:16px;
+    padding:clamp(10px,1.6vw,18px);box-shadow:0 8px 30px rgba(0,0,0,.55);
+  }
+  .panel.loki{grid-area:loki;}
+  .panel.scheme{grid-area:scheme;}
+  /* Brand-Block (Logo + Spielerzahl) */
+  .brand{
+    grid-area:brand;align-self:stretch;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:clamp(10px,2vw,18px);
+  }
+  .brand .players{margin:0;}
+  .card{position:relative;border-radius:10px;overflow:hidden;}
+  .card img{display:block;width:100%;height:auto;}
+  .loki .card{border-radius:var(--loki-radius);}   /* stärkere Abrundung der Loki-Karte */
+
+  .readout{
+    text-align:center;margin-top:clamp(8px,1.4vw,14px);font-weight:900;
+    font-variant-numeric:tabular-nums;line-height:1;
+    font-size:clamp(46px,12vw,108px);text-shadow:0 3px 10px rgba(0,0,0,.6);
+    user-select:none;white-space:nowrap;overflow:hidden;
+  }
+  .readout .slash{opacity:.45;margin:0 .12em;font-weight:700;}
+  .readout .val{cursor:pointer;display:inline-block;min-width:.6em;
+    border-radius:8px;padding:0 .06em;transition:background .12s;}
+  .readout .val:hover{background:rgba(255,255,255,.08);}
+  .readout input{
+    font:inherit;color:inherit;text-align:center;width:3.6em;background:var(--field-bg);
+    border:2px solid currentColor;border-radius:8px;outline:none;
+  }
+  .readout input::-webkit-outer-spin-button,
+  .readout input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .readout input[type=number]{-moz-appearance:textfield;}
+
+  .label{text-align:center;margin-top:6px;font-size:clamp(12px,1.8vw,16px);
+    letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .hint{text-align:center;margin-top:2px;font-size:clamp(10px,1.4vw,12px);color:#6b7480;}
+
+  .controls{display:grid;gap:clamp(6px,1.2vw,12px);margin-top:clamp(10px,1.6vw,16px);}
+  .controls.cols4{grid-template-columns:repeat(4,1fr);}
+  .controls.cols2{grid-template-columns:repeat(2,1fr);}
+  .controls button{
+    font:inherit;font-weight:800;font-size:clamp(16px,3vw,24px);padding:.5em 0;
+    border:none;border-radius:12px;cursor:pointer;color:#fff;background:#222a35;
+    transition:transform .06s, filter .12s;
+  }
+  .controls button:active{transform:translateY(2px) scale(.97);}
+  .controls button.minus{background:#3a2230;}
+  .controls button.plus{background:#1f3340;}
+  .controls button:hover{filter:brightness(1.25);}
+
+  /* Reset-Button: im Desktop unter Logo+Spielerzahl (Brand-Block), mobil unten im Footer */
+  .footer{text-align:center;padding:6px 12px clamp(14px,3vw,28px);display:none;}
+  .js-reset{
+    font:inherit;font-size:13px;font-weight:700;color:var(--muted);
+    background:transparent;border:1px solid var(--panel-border);border-radius:10px;
+    padding:8px 16px;cursor:pointer;
+  }
+  .js-reset:hover{color:var(--txt);border-color:var(--muted);}
+
+  /* Farb-Akzente */
+  .loki .readout{color:var(--red);}
+  .loki .controls button{box-shadow:inset 0 0 0 1px rgba(255,47,47,.25);}
+  .scheme .readout{color:var(--yellow);}
+  .scheme .controls button{box-shadow:inset 0 0 0 1px rgba(255,210,30,.25);}
+
+  /* ---------- Vollbild-Overlays ---------- */
+  .overlay{
+    position:fixed;inset:0;z-index:100;display:none;
+    align-items:center;justify-content:center;flex-direction:column;
+    text-align:center;cursor:pointer;
+  }
+  .overlay.show{display:flex;}
+  #fireworks-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:100;display:none;}
+  #fireworks-canvas.show{display:block;}
+
+  #victory{background:radial-gradient(circle at center,rgba(10,30,10,.35),rgba(0,0,0,.82));}
+  #victory .title{
+    font-size:clamp(38px,11vw,150px);font-weight:900;letter-spacing:.04em;
+    color:#fff;text-shadow:0 0 24px #6cff7a,0 0 50px #2bd84a;
+    animation:pop .6s ease-out;
+  }
+  #victory .sub{margin-top:.2em;font-size:clamp(16px,3.2vw,40px);font-weight:800;
+    color:#cfffd6;text-shadow:0 2px 12px #000;}
+
+  #defeat{
+    background:radial-gradient(circle at center,rgba(90,0,0,.55),rgba(0,0,0,.94));
+    animation:defeatPulse 2.4s ease-in-out infinite;
+  }
+  #defeat .title{
+    font-size:clamp(40px,12vw,170px);font-weight:900;letter-spacing:.06em;
+    color:#ff3030;text-shadow:0 0 24px #ff0000,0 0 60px #8b0000;
+    animation:pop .6s ease-out, flicker 3s ease-in-out infinite;
+  }
+  #defeat .sub{margin-top:.3em;font-size:clamp(16px,3.4vw,42px);font-weight:800;
+    color:#ffb3b3;text-shadow:0 2px 12px #000;font-style:italic;}
+  .overlay .close{margin-top:1.4em;font-size:clamp(12px,1.8vw,16px);
+    color:rgba(255,255,255,.7);letter-spacing:.1em;text-transform:uppercase;}
+
+  @keyframes pop{0%{transform:scale(.3);opacity:0;}60%{transform:scale(1.12);}100%{transform:scale(1);opacity:1;}}
+  @keyframes flicker{0%,100%{opacity:1;}48%{opacity:1;}50%{opacity:.55;}52%{opacity:1;}}
+  @keyframes defeatPulse{0%,100%{background-color:rgba(0,0,0,.9);}50%{background-color:rgba(40,0,0,.96);}}
+
+  /* Sieg & Niederlage im Light-Mode: helle statt dunkle Bildschirme */
+  html.light #victory{background:radial-gradient(circle at center,rgba(227,255,240,.30),rgba(159,231,184,.62));}
+  html.light #victory .title{color:#0c7a2c;text-shadow:0 0 18px #8dffa6,0 2px 6px rgba(0,0,0,.18);}
+  html.light #victory .sub{color:#0b5c24;text-shadow:0 1px 4px rgba(255,255,255,.6);}
+  html.light #defeat{background:radial-gradient(circle at center,#ffdada,#ff9c9c);animation:none;}
+  html.light #defeat .title{color:#a40000;text-shadow:0 0 18px #ff7a7a,0 2px 6px rgba(0,0,0,.18);}
+  html.light #defeat .sub{color:#7a0000;text-shadow:0 1px 4px rgba(255,255,255,.6);}
+  html.light .overlay .close{color:rgba(0,0,0,.6);}
+
+  /* ---------- Loki-Verwandlungs-Sequenz ---------- */
+  #flipseq{
+    background:radial-gradient(circle at center,rgba(20,40,20,.5),rgba(0,0,0,.96));
+    padding:16px;
+  }
+  /* Schritt 1: Ankündigung */
+  .fs-announce{display:flex;flex-direction:column;align-items:center;}
+  .fs-announce .kicker{
+    font-size:clamp(14px,2.6vw,28px);font-weight:800;letter-spacing:.4em;
+    color:#7dff8a;text-transform:uppercase;margin-bottom:.3em;
+    animation:flicker 2s ease-in-out infinite;
+  }
+  .fs-announce .title{
+    font-size:clamp(34px,9vw,120px);font-weight:900;letter-spacing:.03em;color:#fff;
+    text-shadow:0 0 22px #3dd84a,0 0 60px #1f8c2c;line-height:1.02;text-align:center;
+    animation:pop .5s ease-out;
+  }
+  .fs-announce .sub{
+    margin-top:.25em;font-size:clamp(16px,3.2vw,40px);font-weight:800;
+    color:#cfffd6;text-shadow:0 2px 12px #000;text-align:center;
+  }
+  .fs-hint{margin-top:1.4em;font-size:clamp(12px,1.8vw,17px);color:rgba(255,255,255,.8);
+    letter-spacing:.12em;text-transform:uppercase;animation:hintPulse 1.4s ease-in-out infinite;}
+  @keyframes hintPulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+
+  /* Schritt 2: Karten-Bühne */
+  .fs-stage{display:flex;flex-direction:column;align-items:center;width:100%;}
+  .fs-cardwrap{position:relative;display:inline-block;line-height:0;
+    filter:drop-shadow(0 12px 40px rgba(0,0,0,.7));}
+  .fs-cardwrap img{display:block;height:min(74vh,80vw);width:auto;max-width:92vw;border-radius:var(--loki-radius);}
+  .fs-cardwrap .fs-new{position:absolute;inset:0;height:100%;width:100%;z-index:1;}
+  .fs-cardwrap .fs-old{position:relative;z-index:2;}
+  /* Vorwärts (Stufe 1 -> 2): ansteigendes Zittern */
+  .fs-cardwrap.shaking .fs-old{animation:cardShake 1.4s ease-in-out both;}
+  /* Innehalten / Aufladen direkt vor dem Zerplatzen – Spannung */
+  .fs-cardwrap.charging .fs-old{animation:cardCharge .55s ease-in both;}
+  .fs-new.reveal{animation:revealNew .7s ease-out both;}
+  @keyframes revealNew{0%{transform:scale(.86);filter:brightness(2.2) blur(2px);}
+    60%{filter:brightness(1.3) blur(0);}100%{transform:scale(1);filter:none;}}
+  @keyframes cardShake{
+    0%  {transform:translate(0,0) rotate(0);}
+    5%  {transform:translate(-4px,1px) rotate(-1.4deg);}
+    10% {transform:translate(5px,-1px) rotate(1.6deg);}
+    15% {transform:translate(-6px,2px) rotate(-1.8deg);}
+    20% {transform:translate(6px,-1px) rotate(1.7deg);}
+    25% {transform:translate(-7px,1px) rotate(-2deg);}
+    30% {transform:translate(7px,2px) rotate(2deg);}
+    35% {transform:translate(-6px,-1px) rotate(-1.8deg);}
+    40% {transform:translate(7px,-2px) rotate(1.9deg);}
+    45% {transform:translate(-7px,1px) rotate(-2.1deg);}
+    50% {transform:translate(8px,1px) rotate(2.1deg);}
+    55% {transform:translate(-7px,2px) rotate(-1.9deg);}
+    60% {transform:translate(7px,-2px) rotate(2deg);}
+    65% {transform:translate(-8px,1px) rotate(-2.2deg);}
+    70% {transform:translate(7px,2px) rotate(2deg);}
+    75% {transform:translate(-6px,-1px) rotate(-1.7deg);}
+    80% {transform:translate(6px,1px) rotate(1.6deg);}
+    85% {transform:translate(-7px,2px) rotate(-1.9deg);}
+    90% {transform:translate(6px,-1px) rotate(1.5deg);}
+    95% {transform:translate(-3px,0) rotate(-.8deg);}
+    100%{transform:translate(0,0) rotate(0);}
+  }
+  /* Aufladen: kurz innehalten, Glühen + minimaler Zoom wächst an */
+  @keyframes cardCharge{
+    0%  {transform:scale(1);filter:none;}
+    70% {transform:scale(1.015);filter:brightness(1.25) drop-shadow(0 0 14px #7dff8a);}
+    100%{transform:scale(1.03);filter:brightness(1.9) drop-shadow(0 0 34px #9dffa8) saturate(1.4);}
+  }
+  /* Rückwärts (Stufe 2 -> 1): sanfter kurzer Übergang */
+  .fs-cardwrap.softback .fs-old{animation:softFade .55s ease forwards;}
+  .fs-cardwrap.softback .fs-new{animation:softReveal .55s ease forwards;}
+  @keyframes softFade{from{opacity:1;}to{opacity:0;}}
+  @keyframes softReveal{from{opacity:.4;transform:scale(1.015);}to{opacity:1;transform:scale(1);}}
+  /* Scherben */
+  .fs-shatter{position:absolute;inset:0;z-index:3;pointer-events:none;}
+  .fs-shatter .shard{
+    position:absolute;inset:0;background-size:100% 100%;background-position:center;
+    will-change:transform,opacity;
+    animation:shardFly var(--dur) cubic-bezier(.2,.5,.3,1) var(--delay) forwards;
+  }
+  @keyframes shardFly{
+    0%{transform:translate(0,0) rotate(0) scale(1);opacity:1;}
+    15%{opacity:1;}
+    100%{transform:translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.6);opacity:0;}
+  }
+
+  /* Hochkant / schmale Fenster: eine Spalte, Logo+Spieler oben */
+  @media (max-width:760px){
+    .wrap{
+      grid-template-columns:minmax(0, 560px);
+      grid-template-areas:"brand" "loki" "scheme";
+    }
+    .panel{max-width:100%;}
+    .footer{display:block;}      /* mobil: Reset unten */
+    .brand-reset{display:none;}  /* mobil: Reset nicht im Brand-Block */
+  }
+</style>
+</head>
+<body>
+
+  <!-- Alles in diesem Container wird so skaliert, dass es immer ins Fenster passt -->
+  <div id="fit">
+
+  <header>
+    <button id="lang-toggle" class="lang-toggle" title="Sprache wechseln" aria-label="Sprache wechseln">EN</button>
+    <button id="theme-toggle" class="theme-toggle" title="Hell/Dunkel umschalten" aria-label="Theme umschalten">🌙</button>
+  </header>
+
+  <main class="wrap">
+
+    <!-- Logo + Spielerzahl: mobil oben, auf Desktop rechts unter dem Hauptplan -->
+    <div class="brand">
+      <img id="logo" class="logo" src="logo.png" alt="Trickster Takeover">
+      <div class="players">
+        <span class="lbl" data-i18n="players">Spieler</span>
+        <button id="p-minus">−</button>
+        <span class="pcount" id="p-count">1</span>
+        <button id="p-plus">+</button>
+      </div>
+      <div class="players">
+        <span class="lbl" data-i18n="groups">Gruppen</span>
+        <button id="g-minus">−</button>
+        <span class="pcount" id="g-count">1</span>
+        <button id="g-plus">+</button>
+      </div>
+      <button id="lock-toggle" class="lock-toggle" title="Sperren" aria-label="Sperren">🔓</button>
+      <button class="js-reset brand-reset" data-i18n="reset">Zurücksetzen (Loki voll · Bedrohung 0)</button>
+    </div>
+
+    <!-- LOKI -->
+    <section class="panel loki">
+      <div class="card">
+        <img id="loki-img" src="55027Ade.jpg" alt="Loki, God of Lies">
+      </div>
+      <div class="readout">
+        <span class="val" data-counter="loki" data-field="cur" id="loki-cur">20</span><span class="slash">/</span><span class="val" data-counter="loki" data-field="max" id="loki-max">20</span>
+      </div>
+      <div class="label" data-i18n="hp">Lebenspunkte</div>
+      <div class="hint" data-i18n="hint">Aktuellen Wert antippen = direkt setzen &middot; Maximum antippen = Spieleranzahl</div>
+      <div class="controls cols4">
+        <button class="minus" data-counter="loki" data-delta="-5">−5</button>
+        <button class="minus" data-counter="loki" data-delta="-1">−1</button>
+        <button class="plus"  data-counter="loki" data-delta="1">+1</button>
+        <button class="plus"  data-counter="loki" data-delta="5">+5</button>
+      </div>
+    </section>
+
+    <!-- HAUPTPLAN -->
+    <section class="panel scheme">
+      <div class="card">
+        <img id="scheme-img" src="55028Bde.jpg" alt="Worlds Collide – Main Scheme">
+      </div>
+      <div class="readout">
+        <span class="val" data-counter="scheme" data-field="cur" id="scheme-cur">0</span><span class="slash">/</span><span class="val" data-counter="scheme" data-field="max" id="scheme-max">2</span>
+      </div>
+      <div class="label" data-i18n="threat">Bedrohung</div>
+      <div class="hint" data-i18n="hintThreat">Aktuellen Wert antippen = direkt setzen &middot; Maximum antippen = Gruppen</div>
+      <div class="controls cols2">
+        <button class="minus" data-counter="scheme" data-delta="-1">−1</button>
+        <button class="plus"  data-counter="scheme" data-delta="1">+1</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="footer">
+    <button class="js-reset" data-i18n="reset">Zurücksetzen (Loki voll · Bedrohung 0)</button>
+  </div>
+
+  </div><!-- /#fit -->
+
+  <!-- Sieg: Feuerwerk -->
+  <canvas id="fireworks-canvas"></canvas>
+  <div class="overlay" id="victory">
+    <div class="title" data-i18n="victoryTitle">SIEG!</div>
+    <div class="sub" data-i18n="victorySub">Loki, Gott der Lügen, ist besiegt!</div>
+    <div class="close" data-i18n="close">Klicken zum Schließen</div>
+  </div>
+
+  <!-- Niederlage -->
+  <div class="overlay" id="defeat">
+    <div class="title" data-i18n="defeatTitle">NIEDERLAGE</div>
+    <div class="sub" data-i18n="defeatSub">Loki hat erfolgreich seinen Plan vollendet!</div>
+    <div class="close" data-i18n="close">Klicken zum Schließen</div>
+  </div>
+
+  <!-- Loki-Verwandlungs-Sequenz -->
+  <div class="overlay" id="flipseq">
+    <div class="fs-announce" id="fs-announce">
+      <div class="kicker" data-i18n="pause">Das Spiel pausiert</div>
+      <div class="title" id="fs-title">LOKI FOKUSSIERT SICH</div>
+      <div class="sub" id="fs-sub">Loki geht in Stufe 2 über</div>
+      <div class="fs-hint" id="fs-announce-hint">Klicken, um die Verwandlung zu zeigen</div>
+    </div>
+    <div class="fs-stage" id="fs-stage" style="display:none">
+      <div class="fs-cardwrap" id="fs-cardwrap">
+        <img class="fs-new" id="fs-new" alt="neue Stufe">
+        <img class="fs-old" id="fs-old" alt="alte Stufe">
+        <div class="fs-shatter" id="fs-shatter"></div>
+      </div>
+      <div class="fs-hint" id="fs-hint2" data-i18n="continue" style="visibility:hidden">Klicken, um fortzufahren</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===== Spiel-Logik =====
+     Loki max TP = 20*Spieler, flippt bei <= 10*Spieler (halbe max TP).
+     Bedrohung max = 2*Gruppen. Eine Gruppe hat 1-4 Spieler, daher:
+       Gruppen-Min = ceil(Spieler/4), Gruppen-Max = Spieler. */
+  var HP_PER_PLAYER    = 20;
+  var FLIP_PER_PLAYER  = 10;
+  var THREAT_PER_GROUP = 2;
+  var PLAYERS_PER_GROUP = 4;          // max. Spieler je Gruppe
+  var MIN_PLAYERS = 1, MAX_PLAYERS = 100;
+
+  function groupsMin(p){ return Math.ceil(p / PLAYERS_PER_GROUP); }   // jede Gruppe max. 4 Spieler
+  function groupsMax(p){ return p; }                                  // jede Gruppe min. 1 Spieler
+  function clampGroups(g, p){ return clamp(Math.round(g), groupsMin(p), groupsMax(p)); }
+
+  // Karten-Bilder je Sprache (deutsche Dateien enden auf "de")
+  var IMAGES = {
+    de:{ A:"55027Ade.jpg", B:"55027Bde.jpg", scheme:"55028Bde.jpg" },
+    en:{ A:"55027A.jpg",   B:"55027B.jpg",   scheme:"55028B.jpg"   }
+  };
+  var IMG = IMAGES.de;   // wird von applyLang() je nach Sprache gesetzt
+
+  function freshState(n){
+    n = clamp(Math.round(n), MIN_PLAYERS, MAX_PLAYERS);
+    return { players:n, groups:groupsMin(n), lokiCur:HP_PER_PLAYER*n, schemeCur:0 };
+  }
+
+  var state = load();
+
+  function load(){
+    try{
+      var raw = localStorage.getItem("trickster-takeover");
+      if(raw){
+        var p = JSON.parse(raw);
+        if(p && typeof p.players==="number"){
+          // Abwärtskompatibel: ältere Stände ohne Gruppen ergänzen
+          if(typeof p.groups !== "number") p.groups = groupsMin(p.players);
+          return p;
+        }
+      }
+    }catch(e){}
+    return freshState(1);
+  }
+  function save(){
+    try{ localStorage.setItem("trickster-takeover", JSON.stringify(state)); }catch(e){}
+  }
+
+  function clamp(n,lo,hi){ return Math.max(lo, Math.min(hi, n)); }
+
+  // Große Lebenspunkt-/Bedrohungsanzeige automatisch verkleinern,
+  // damit sie nie umbricht (z. B. "2000 / 2000" bei 100 Spielern).
+  function fitReadouts(){
+    document.querySelectorAll(".readout").forEach(function(el){
+      el.style.fontSize = "";              // zurück auf CSS-Wert (clamp)
+      var avail = el.clientWidth;          // verfügbare Breite im Panel
+      if(!avail) return;
+      var content = el.scrollWidth;        // Breite des Textes (nowrap)
+      if(content > avail){
+        var fs = parseFloat(getComputedStyle(el).fontSize);
+        el.style.fontSize = (fs * avail / content * 0.97) + "px";
+      }
+    });
+  }
+  // Gesamte Darstellung so skalieren, dass sie immer komplett ins Fenster passt
+  // (Breite UND Höhe) – kein Scrollen. Verkleinert bei Bedarf, zentriert bei Platz.
+  var MAX_FIT_SCALE = 3;   // weicher Deckel gegen extreme Vergrößerung/Unschärfe
+  function fitToWindow(){
+    var fit = document.getElementById("fit");
+    if(!fit) return;
+    // erst auf Naturgröße zurücksetzen, dann messen
+    fit.style.transform = "none";
+    fit.style.marginTop = "0px";
+    var naturalH = fit.offsetHeight, naturalW = fit.offsetWidth;
+    if(!naturalH || !naturalW) return;
+    var vh = window.innerHeight, vw = window.innerWidth;
+    // gleichmäßig so skalieren, dass der Inhalt das Fenster bestmöglich füllt
+    // (vergrößert UND verkleinert), aber immer vollständig hineinpasst
+    var scale = Math.min(vw / naturalW, vh / naturalH, MAX_FIT_SCALE);
+    fit.style.transform = "scale(" + scale + ")";
+    // vertikal zentrieren (Ursprung ist oben-mitte, daher skalierte Höhe verwenden)
+    fit.style.marginTop = Math.max(0, (vh - naturalH * scale) / 2) + "px";
+  }
+
+  function lokiMax(){   return HP_PER_PLAYER   * state.players; }
+  function flipAt(){    return FLIP_PER_PLAYER * state.players; }
+  function schemeMax(){ return THREAT_PER_GROUP * state.groups; }
+
+  /* ===== Loki-Stufenwechsel ===== */
+  var lokiReady = false;          // nach erstem Render -> dann Sequenz statt Sofort-Tausch
+  var lokiStage = "A";            // aktuell im Panel gezeigte Stufe
+  var flipSeqActive = false, flipStep = 0, flipTarget = "A";
+  var flipMode = "flip";            // "flip" = Stufenwechsel · "victory" = finaler Sieg
+  var victorySeqActive = false;     // Sieges-Zersplitter-Sequenz läuft (vor dem Feuerwerk)
+
+  function applyLokiImage(){
+    document.getElementById("loki-img").setAttribute("src", IMG[lokiStage]);
+  }
+
+  function updateLokiStage(stage){
+    if(stage === lokiStage) return;
+    if(!lokiReady){ lokiStage = stage; applyLokiImage(); return; }
+    if(flipSeqActive) return;
+    // Bei Niederlage Lokis (TP<=0) keine Verwandlungs-Pause -> direkt zur Siegessequenz
+    if(state.lokiCur <= 0){ lokiStage = stage; applyLokiImage(); return; }
+    startFlipSequence(stage);
+  }
+
+  /* --- Verwandlungs-Sequenz --- */
+  var flipOverlay = document.getElementById("flipseq");
+
+  function startFlipSequence(targetStage){
+    flipSeqActive = true; flipStep = 0; flipTarget = targetStage; flipMode = "flip";
+
+    document.getElementById("fs-old").src = IMG[lokiStage];
+    document.getElementById("fs-new").src = IMG[targetStage];
+    var forward = (targetStage === "B");
+    document.getElementById("fs-sub").textContent = forward ? t("toStageB") : t("toStageA");
+    // Kicker/Fortfahren-Hinweis auf Stufenwechsel-Texte zurücksetzen
+    document.querySelector("#fs-announce .kicker").textContent = t("pause");
+    document.getElementById("fs-hint2").textContent = t("continue");
+
+    // Schritt 1: Ankündigung zeigen, Bühne ausblenden
+    document.getElementById("fs-announce").style.display = "flex";
+    var stage = document.getElementById("fs-stage");
+    stage.style.display = "none";
+    document.getElementById("fs-hint2").style.visibility = "hidden";
+    document.getElementById("fs-shatter").innerHTML = "";
+    document.getElementById("fs-old").style.visibility = "visible";
+    document.getElementById("fs-new").classList.remove("reveal");
+    document.getElementById("fs-new").style.visibility = "visible";   // neue Karte wieder sichtbar (nach evtl. Siegessequenz)
+    document.getElementById("fs-cardwrap").classList.remove("shaking","charging","softback");
+
+    // Titel/Hinweis je nach Richtung dramatisch bzw. ruhig (lokalisiert)
+    document.getElementById("fs-title").textContent = forward ? t("transformTitle") : t("gatherTitle");
+    document.getElementById("fs-announce-hint").textContent = forward ? t("showTransform") : t("continue");
+
+    flipOverlay.classList.add("show");
+  }
+
+  // Finaler Sieg: Stufe-B-Loki zittert und zerplatzt, danach Feuerwerk (klickgesteuert)
+  function startVictorySequence(){
+    victorySeqActive = true; flipSeqActive = true; flipStep = 0; flipMode = "victory";
+
+    // Es zerbricht IMMER die Stufe-B-Karte, keine neue Karte danach
+    document.getElementById("fs-old").src = IMG.B;
+    document.getElementById("fs-old").style.visibility = "visible";
+    document.getElementById("fs-new").classList.remove("reveal");
+    document.getElementById("fs-new").style.visibility = "hidden";   // keine neue Karte
+
+    // Schritt 1: Ankündigung zeigen, Bühne ausblenden
+    document.getElementById("fs-announce").style.display = "flex";
+    document.getElementById("fs-stage").style.display = "none";
+    document.getElementById("fs-hint2").style.visibility = "hidden";
+    document.getElementById("fs-shatter").innerHTML = "";
+    document.getElementById("fs-cardwrap").classList.remove("shaking","charging","softback");
+
+    // Sieges-Texte (lokalisiert)
+    document.querySelector("#fs-announce .kicker").textContent = t("vSeqKicker");
+    document.getElementById("fs-title").textContent       = t("vSeqTitle");
+    document.getElementById("fs-sub").textContent         = t("vSeqSub");
+    document.getElementById("fs-announce-hint").textContent = t("vSeqStart");
+    document.getElementById("fs-hint2").textContent       = t("vSeqContinue");
+
+    flipOverlay.classList.add("show");
+  }
+
+  function runTransition(){
+    document.getElementById("fs-announce").style.display = "none";
+    document.getElementById("fs-stage").style.display = "flex";
+
+    var wrap = document.getElementById("fs-cardwrap");
+    var oldImg = document.getElementById("fs-old");
+
+    wrap.classList.remove("shaking","charging","softback");
+    void wrap.offsetWidth;            // Reflow erzwingen, damit Animationen neu starten
+
+    if(flipMode === "victory" || flipTarget === "B"){
+      // Vorwärts: ansteigendes Zittern -> Innehalten -> Zerplatzen
+      wrap.classList.add("shaking");                 // 1,4 s Zittern
+      setTimeout(function(){
+        if(!flipSeqActive) return;
+        wrap.classList.remove("shaking");
+        wrap.classList.add("charging");              // 0,55 s Spannung / Aufladen
+        setTimeout(function(){
+          if(!flipSeqActive) return;
+          buildShards(oldImg.currentSrc || oldImg.src);
+          oldImg.style.visibility = "hidden";        // Karte zerplatzt
+          if(flipMode === "victory"){
+            // Sieg: keine neue Karte, kein zweiter Klick nötig –
+            // nach 1 s automatisch weiter zum Feuerwerk
+            setTimeout(function(){ if(victorySeqActive) finishVictorySequence(); }, 1000);
+          } else {
+            document.getElementById("fs-new").classList.add("reveal");
+            showContinueHint(1100);
+          }
+        }, 550);
+      }, 1400);
+    } else {
+      // Rückwärts (Stufe 2 -> 1): sanfter, kurzer Übergang
+      wrap.classList.add("softback");
+      setTimeout(function(){
+        if(!flipSeqActive) return;
+        oldImg.style.visibility = "hidden";
+        showContinueHint(150);
+      }, 550);
+    }
+  }
+
+  function showContinueHint(delay){
+    setTimeout(function(){
+      if(flipSeqActive) document.getElementById("fs-hint2").style.visibility = "visible";
+    }, delay);
+  }
+
+  function buildShards(src){
+    var cont = document.getElementById("fs-shatter");
+    cont.innerHTML = "";
+    var COLS = 6, ROWS = 8;
+    for(var r=0;r<ROWS;r++){
+      for(var c=0;c<COLS;c++){
+        var x0=c/COLS*100, x1=(c+1)/COLS*100, y0=r/ROWS*100, y1=(r+1)/ROWS*100;
+        var shard = document.createElement("div");
+        shard.className = "shard";
+        shard.style.backgroundImage = "url('"+src+"')";
+        shard.style.clipPath = "polygon("+x0+"% "+y0+"%,"+x1+"% "+y0+"%,"+x1+"% "+y1+"%,"+x0+"% "+y1+"%)";
+        // Flugrichtung: vom Zentrum nach außen + etwas Schwerkraft
+        var cx=(x0+x1)/2-50, cy=(y0+y1)/2-50;
+        var spread = 2.2 + ((r*COLS+c)%5)*0.25;       // deterministisch, ohne Math.random
+        var tx=(cx*spread).toFixed(1), ty=(cy*spread+40).toFixed(1);
+        var rot=(((r+c)%2?1:-1)*(40+((r*7+c*13)%70)))+"deg";
+        shard.style.setProperty("--tx", tx+"%");
+        shard.style.setProperty("--ty", ty+"%");
+        shard.style.setProperty("--rot", rot);
+        shard.style.setProperty("--dur", (0.9+((r+c)%4)*0.15).toFixed(2)+"s");
+        shard.style.setProperty("--delay", (((r*COLS+c)%6)*0.03).toFixed(2)+"s");
+        cont.appendChild(shard);
+      }
+    }
+  }
+
+  function closeFlip(){
+    flipSeqActive = false;
+    flipOverlay.classList.remove("show");
+    document.getElementById("fs-shatter").innerHTML = "";
+    document.getElementById("fs-cardwrap").classList.remove("shaking","charging","softback");
+    document.getElementById("fs-new").classList.remove("reveal");
+    lokiStage = flipTarget;
+    applyLokiImage();
+  }
+
+  function finishVictorySequence(){
+    if(!victorySeqActive) return;   // nur einmal ausführen (Timeout oder Klick)
+    flipSeqActive = false; victorySeqActive = false; flipMode = "flip";
+    flipOverlay.classList.remove("show");
+    document.getElementById("fs-shatter").innerHTML = "";
+    document.getElementById("fs-cardwrap").classList.remove("shaking","charging","softback");
+    document.getElementById("fs-new").classList.remove("reveal");
+    document.getElementById("fs-old").style.visibility = "visible";
+    lokiStage = "B"; applyLokiImage();   // Panel zeigt (besiegte) Stufe B
+    startVictory();                      // jetzt der Sieg mit Feuerwerk
+  }
+
+  // Klick steuert die Sequenz: 1. Klick = zerbrechen, 2. Klick = schließen/weiter
+  flipOverlay.addEventListener("click", function(){
+    if(flipStep === 0){ flipStep = 1; runTransition(); }
+    else if(flipMode === "victory"){ finishVictorySequence(); }
+    else { closeFlip(); }
+  });
+
+  /* ===== Schwellen-Flags für Spielende-Effekte ===== */
+  var victoryActive = false, defeatActive = false, fireworksTimer = null;
+
+  /* ===== Rendering ===== */
+  function render(){
+    state.players   = clamp(Math.round(state.players), MIN_PLAYERS, MAX_PLAYERS);
+    state.groups    = clampGroups(state.groups, state.players);
+    var lMax = lokiMax(), sMax = schemeMax();
+    state.lokiCur   = clamp(Math.round(state.lokiCur),   0, lMax);
+    state.schemeCur = clamp(Math.round(state.schemeCur), 0, sMax);
+
+    document.getElementById("p-count").textContent   = state.players;
+    document.getElementById("g-count").textContent   = state.groups;
+
+    document.getElementById("loki-cur").textContent  = state.lokiCur;
+    document.getElementById("loki-max").textContent  = lMax;
+
+    document.getElementById("scheme-cur").textContent  = state.schemeCur;
+    document.getElementById("scheme-max").textContent  = sMax;
+
+    fitReadouts();
+    fitToWindow();
+
+    if(state.lokiCur <= 0){
+      // Sieg hat Vorrang: eine gleichzeitig erfüllte Niederlage wird unterdrückt
+      if(defeatActive) stopDefeat();
+      // Loki besiegt: erst Zersplitter-Sequenz (Stufe B), danach Sieg + Feuerwerk
+      if(!victoryActive && !victorySeqActive) startVictorySequence();
+    } else {
+      if(victoryActive) stopVictory();
+      // Loki-Stufe passend zur Karte (löst bei Wechsel die Verwandlungs-Sequenz aus)
+      updateLokiStage((state.lokiCur <= flipAt()) ? "B" : "A");
+
+      // Niederlage nur prüfen, wenn (noch) kein Sieg vorliegt
+      if(sMax > 0 && state.schemeCur >= sMax){ if(!defeatActive) startDefeat(); }
+      else if(defeatActive){ stopDefeat(); }
+    }
+
+    save();
+  }
+
+  function setPlayers(n){
+    n = clamp(Math.round(n), MIN_PLAYERS, MAX_PLAYERS);
+    state = freshState(n);          // neue Spieleranzahl -> Werte auf Spielstart
+    lokiStage = "A"; applyLokiImage();   // direkt auf Stufe A, ohne Verwandlungs-Sequenz
+    render();
+  }
+
+  // Gruppenzahl ändern -> nur Max. Bedrohung anpassen (kein Spiel-Reset)
+  function setGroups(g){
+    state.groups = clampGroups(g, state.players);
+    render();
+  }
+
+  /* ===== +/- Buttons ===== */
+  document.querySelectorAll(".controls button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var key = btn.getAttribute("data-counter");
+      var d   = parseInt(btn.getAttribute("data-delta"),10);
+      if(key==="loki")   state.lokiCur   = clamp(state.lokiCur+d,   0, lokiMax());
+      if(key==="scheme") state.schemeCur = clamp(state.schemeCur+d, 0, schemeMax());
+      render();
+    });
+  });
+
+  /* ===== Inline-Eingabe: cur direkt setzen, max -> Spieleranzahl ===== */
+  document.querySelectorAll(".readout .val").forEach(function(span){
+    span.addEventListener("click", function(){
+      if(span.querySelector("input")) return;
+      var field = span.getAttribute("data-field");
+      var key = span.getAttribute("data-counter");
+      // Maximum ist abgeleitet: Loki -> Spieleranzahl, Bedrohung -> Gruppen
+      if(field==="max"){ (key==="scheme" ? editGroups : editPlayers)(); return; }
+
+      var cur = (key==="loki") ? state.lokiCur : state.schemeCur;
+      var mx  = (key==="loki") ? lokiMax() : schemeMax();
+      var input = document.createElement("input");
+      input.type="number"; input.value=cur; input.min=0; input.max=mx;
+      span.textContent=""; span.appendChild(input); input.focus(); input.select();
+      function commit(){
+        var v = parseInt(input.value,10);
+        if(!isNaN(v)){
+          if(key==="loki")   state.lokiCur   = clamp(v,0,lokiMax());
+          if(key==="scheme") state.schemeCur = clamp(v,0,schemeMax());
+        }
+        render();
+      }
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", function(e){
+        if(e.key==="Enter") input.blur();
+        else if(e.key==="Escape") render();
+      });
+    });
+  });
+
+  /* ===== Spieleranzahl-Steuerung ===== */
+  document.getElementById("p-minus").addEventListener("click", function(){ setPlayers(state.players-1); });
+  document.getElementById("p-plus").addEventListener("click",  function(){ setPlayers(state.players+1); });
+  document.getElementById("p-count").addEventListener("click", editPlayers);
+
+  function editPlayers(){
+    if(locked) return;
+    var span = document.getElementById("p-count");
+    if(span.querySelector("input")) return;
+    var input=document.createElement("input");
+    input.type="number"; input.value=state.players; input.min=MIN_PLAYERS; input.max=MAX_PLAYERS;
+    span.textContent=""; span.appendChild(input); input.focus(); input.select();
+    function commit(){
+      var v=parseInt(input.value,10);
+      if(!isNaN(v)) setPlayers(v); else render();
+    }
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", function(e){
+      if(e.key==="Enter") input.blur();
+      else if(e.key==="Escape") render();
+    });
+  }
+
+  /* ===== Gruppen-Steuerung (Min/Max abhängig von Spieleranzahl) ===== */
+  document.getElementById("g-minus").addEventListener("click", function(){ setGroups(state.groups-1); });
+  document.getElementById("g-plus").addEventListener("click",  function(){ setGroups(state.groups+1); });
+  document.getElementById("g-count").addEventListener("click", editGroups);
+
+  function editGroups(){
+    if(locked) return;
+    var span = document.getElementById("g-count");
+    if(span.querySelector("input")) return;
+    var input=document.createElement("input");
+    input.type="number"; input.value=state.groups;
+    input.min=groupsMin(state.players); input.max=groupsMax(state.players);
+    span.textContent=""; span.appendChild(input); input.focus(); input.select();
+    function commit(){
+      var v=parseInt(input.value,10);
+      if(!isNaN(v)) setGroups(v); else render();
+    }
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", function(e){
+      if(e.key==="Enter") input.blur();
+      else if(e.key==="Escape") render();
+    });
+  }
+
+  /* ===== Reset (Desktop: im Brand-Block · Mobil: im Footer) ===== */
+  document.querySelectorAll(".js-reset").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state = freshState(state.players);   // Spieleranzahl behalten, Werte zurücksetzen
+      lokiStage = "A"; applyLokiImage();   // direkt auf Stufe A, ohne Verwandlungs-Sequenz
+      render();
+    });
+  });
+
+  /* ===== Lock/Unlock: sperrt Spieler-/Gruppen-Änderung und Reset ===== */
+  var lockBtn = document.getElementById("lock-toggle");
+  var locked = false;
+  try{ locked = localStorage.getItem("ttv-lock") === "1"; }catch(e){}
+
+  function refreshLockUI(){
+    lockBtn.textContent = locked ? "🔒" : "🔓";
+    lockBtn.classList.toggle("is-locked", locked);
+    lockBtn.title = locked ? t("unlockTitle") : t("lockTitle");
+    lockBtn.setAttribute("aria-label", lockBtn.title);
+  }
+  function applyLock(l){
+    locked = !!l;
+    // Spieler-/Gruppen-Buttons sperren
+    ["p-minus","p-plus","g-minus","g-plus"].forEach(function(id){
+      document.getElementById(id).disabled = locked;
+    });
+    // Reset (beide Vorkommen) sperren
+    document.querySelectorAll(".js-reset").forEach(function(b){ b.disabled = locked; });
+    // Klick-zum-Bearbeiten (Zähler-Spans, Maximum-Werte) wird in editPlayers/editGroups geblockt
+    document.body.classList.toggle("locked", locked);
+    refreshLockUI();
+  }
+  lockBtn.addEventListener("click", function(){
+    applyLock(!locked);
+    try{ localStorage.setItem("ttv-lock", locked ? "1" : "0"); }catch(e){}
+  });
+
+  /* ===== Niederlage-Overlay ===== */
+  var defeatEl = document.getElementById("defeat");
+  function startDefeat(){ defeatActive=true; defeatEl.classList.add("show"); }
+  function stopDefeat(){  defeatActive=false; defeatEl.classList.remove("show"); }
+  defeatEl.addEventListener("click", stopDefeat);
+
+  /* ===== Sieg-Overlay + Canvas-Feuerwerk ===== */
+  var victoryEl = document.getElementById("victory");
+  var canvas = document.getElementById("fireworks-canvas");
+  var ctx = canvas.getContext("2d");
+  var particles = [], rockets = [], rafId = null, lastSpawn = 0, tick = 0;
+
+  function resizeCanvas(){
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", function(){ resizeCanvas(); fitReadouts(); fitToWindow(); });
+
+  function startVictory(){
+    victoryActive = true;
+    resizeCanvas();
+    canvas.classList.add("show");
+    victoryEl.classList.add("show");
+    particles = []; rockets = []; tick = 0; lastSpawn = 0;
+    if(rafId) cancelAnimationFrame(rafId);
+    animate();
+    if(fireworksTimer) clearTimeout(fireworksTimer);
+    fireworksTimer = setTimeout(stopVictory, 60000); // ~60 s
+  }
+  function stopVictory(){
+    victoryActive = false;
+    if(fireworksTimer){ clearTimeout(fireworksTimer); fireworksTimer=null; }
+    if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+    canvas.classList.remove("show");
+    victoryEl.classList.remove("show");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  victoryEl.addEventListener("click", stopVictory);
+
+  // Pseudo-Zufall ohne Math.random-Abhängigkeit (vermeidet Probleme in Sandbox)
+  var seed = 123456789;
+  function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+  function launchRocket(){
+    rockets.push({
+      x: canvas.width*(0.15+0.7*rnd()),
+      y: canvas.height,
+      vy: -(9 + rnd()*4),
+      targetY: canvas.height*(0.12+0.4*rnd())
+    });
+  }
+  function explode(x,y){
+    var hue = Math.floor(rnd()*360);
+    var count = 60 + Math.floor(rnd()*40);
+    for(var i=0;i<count;i++){
+      var ang = (Math.PI*2)*(i/count);
+      var spd = 1.5 + rnd()*5;
+      particles.push({
+        x:x, y:y,
+        vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+        life:1, decay:0.008+rnd()*0.012,
+        hue:hue + (rnd()*40-20)
+      });
+    }
+  }
+
+  function animate(){
+    rafId = requestAnimationFrame(animate);
+    tick++;
+    var light = document.documentElement.classList.contains("light");
+    // Nachzieh-Effekt: im Light-Mode gegen Hell ausblenden, sonst gegen Schwarz
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = light ? "rgba(227,255,240,0.28)" : "rgba(0,0,0,0.20)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    // Additives Leuchten nur auf Dunkel; auf Hell normal zeichnen (sonst unsichtbar)
+    ctx.globalCompositeOperation = light ? "source-over" : "lighter";
+
+    if(tick - lastSpawn > 16){ launchRocket(); lastSpawn = tick; if(rnd()>0.6) launchRocket(); }
+
+    for(var i=rockets.length-1;i>=0;i--){
+      var r=rockets[i];
+      r.y += r.vy; r.vy += 0.06;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, 2.5, 0, Math.PI*2);
+      ctx.fillStyle = light ? "#555" : "#fff";
+      ctx.fill();
+      if(r.vy >= -1 || r.y <= r.targetY){ explode(r.x, r.y); rockets.splice(i,1); }
+    }
+    var lum = light ? 45 : 60;
+    for(var j=particles.length-1;j>=0;j--){
+      var p=particles[j];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03; p.vx *= 0.99; p.vy *= 0.99;
+      p.life -= p.decay;
+      if(p.life<=0){ particles.splice(j,1); continue; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.2, 0, Math.PI*2);
+      ctx.fillStyle = "hsla("+p.hue+",100%,"+lum+"%,"+p.life+")";
+      ctx.fill();
+    }
+  }
+
+  /* ===== Light/Dark Mode ===== */
+  var themeBtn = document.getElementById("theme-toggle");
+  function applyTheme(t){
+    var light = (t === "light");
+    document.documentElement.classList.toggle("light", light);   // Klasse auf <html> -> auch Seitenhintergrund
+    themeBtn.textContent = light ? "☀️" : "🌙";
+  }
+  var theme = "dark";
+  try{ theme = localStorage.getItem("ttv-theme") || "dark"; }catch(e){}
+  applyTheme(theme);
+  themeBtn.addEventListener("click", function(){
+    theme = (theme === "light") ? "dark" : "light";
+    try{ localStorage.setItem("ttv-theme", theme); }catch(e){}
+    applyTheme(theme);
+  });
+
+  /* ===== Lokalisierung (Deutsch / Englisch) ===== */
+  var I18N = {
+    de:{
+      players:"Spieler",
+      groups:"Gruppen",
+      hp:"Lebenspunkte",
+      threat:"Bedrohung",
+      hint:"Aktuellen Wert antippen = direkt setzen · Maximum antippen = Spieleranzahl",
+      hintThreat:"Aktuellen Wert antippen = direkt setzen · Maximum antippen = Gruppen",
+      reset:"Zurücksetzen (Loki voll · Bedrohung 0)",
+      victoryTitle:"SIEG!",
+      victorySub:"Loki, Gott der Lügen, ist besiegt!",
+      defeatTitle:"NIEDERLAGE",
+      defeatSub:"Loki hat erfolgreich seinen Plan vollendet!",
+      close:"Klicken zum Schließen",
+      pause:"Das Spiel pausiert",
+      transformTitle:"LOKI FOKUSSIERT SICH",
+      gatherTitle:"Loki sammelt sich",
+      toStageB:"Loki geht in Stufe 2 über",
+      toStageA:"Loki kehrt in Stufe 1 zurück",
+      showTransform:"Klicken, um fortzufahren",
+      continue:"Klicken, um fortzufahren",
+      vSeqKicker:"Der letzte Schlag",
+      vSeqTitle:"LOKI FÄLLT",
+      vSeqSub:"Der Gott der Lügen wird endgültig besiegt",
+      vSeqStart:"Klicken, um den finalen Schlag zu zeigen",
+      vSeqContinue:"Klicken für den Sieg",
+      langBtn:"EN", langTitle:"Sprache wechseln", themeTitle:"Hell/Dunkel umschalten",
+      lockTitle:"Sperren", unlockTitle:"Entsperren"
+    },
+    en:{
+      players:"Players",
+      groups:"Groups",
+      hp:"Hit Points",
+      threat:"Threat",
+      hint:"Tap the current value = set directly · Tap the maximum = number of players",
+      hintThreat:"Tap the current value = set directly · Tap the maximum = number of groups",
+      reset:"Reset (Loki full · Threat 0)",
+      victoryTitle:"VICTORY!",
+      victorySub:"Loki, God of Lies, is defeated!",
+      defeatTitle:"DEFEAT",
+      defeatSub:"Loki has successfully completed his scheme!",
+      close:"Click to close",
+      pause:"The game is paused",
+      transformTitle:"LOKI FOCUSES",
+      gatherTitle:"Loki regroups",
+      toStageB:"Loki advances to stage 2",
+      toStageA:"Loki returns to stage 1",
+      showTransform:"Click to continue",
+      continue:"Click to continue",
+      vSeqKicker:"The final blow",
+      vSeqTitle:"LOKI FALLS",
+      vSeqSub:"The God of Lies is defeated for good",
+      vSeqStart:"Click to deliver the final blow",
+      vSeqContinue:"Click for victory",
+      langBtn:"DE", langTitle:"Switch language", themeTitle:"Toggle light/dark",
+      lockTitle:"Lock", unlockTitle:"Unlock"
+    }
+  };
+
+  var lang = "de";
+  function t(key){ return (I18N[lang] || I18N.de)[key]; }
+
+  var langBtn = document.getElementById("lang-toggle");
+  function applyLang(l){
+    lang = (l === "en") ? "en" : "de";
+    var dict = I18N[lang];
+    // statische Texte mit data-i18n
+    document.querySelectorAll("[data-i18n]").forEach(function(el){
+      var v = dict[el.getAttribute("data-i18n")];
+      if(v != null) el.textContent = v;
+    });
+    // Bilder je Sprache
+    IMG = IMAGES[lang];
+    document.getElementById("scheme-img").src = IMAGES[lang].scheme;
+    applyLokiImage();
+    // Bedienelemente
+    langBtn.textContent = dict.langBtn;       // zeigt die ZIEL-Sprache
+    langBtn.title = dict.langTitle;
+    themeBtn.title = dict.themeTitle;
+    refreshLockUI();                          // Schloss-Tooltip an Sprache anpassen
+    document.documentElement.lang = lang;
+  }
+  try{ lang = localStorage.getItem("ttv-lang") || "de"; }catch(e){}
+  applyLang(lang);
+  langBtn.addEventListener("click", function(){
+    var next = (lang === "de") ? "en" : "de";
+    try{ localStorage.setItem("ttv-lang", next); }catch(e){}
+    applyLang(next);
+  });
+
+  /* ===== Neu-Skalieren, sobald Kartenbilder geladen sind (ändern die Höhe) ===== */
+  ["loki-img","scheme-img","logo"].forEach(function(id){
+    var img = document.getElementById(id);
+    if(img) img.addEventListener("load", fitToWindow);
+  });
+  // nach vollständigem Laden (Schriften/Bilder) noch einmal exakt einpassen
+  window.addEventListener("load", fitToWindow);
+
+  /* ===== Start ===== */
+  applyLock(locked);   // Sperr-Zustand (aus localStorage) auf die Buttons anwenden
+  render();
+  fitToWindow();
+  lokiReady = true;   // ab jetzt Bildwechsel animieren
+})();
+</script>
+</body>
+</html>
